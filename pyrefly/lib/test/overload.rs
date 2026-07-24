@@ -2391,6 +2391,24 @@ f(**{"x": 4.2})  # E: (*args: int, **kwargs: str) -> int [closest match]\n    (*
 );
 
 testcase!(
+    bug = "Multiple overloads are marked as the closest match",
+    test_overload_error_marks_multiple_specialized_signatures_as_closest,
+    r#"
+from typing import overload
+
+class A[T]:
+    @overload
+    def f(self: "A[str]", x: str) -> str: ...
+    @overload
+    def f(self, x: T) -> T: ...
+    def f(self, x: object) -> object:
+        return x
+
+A[str]().f(b"oops")  # E: (x: str) -> str [closest match]\n    (x: str) -> str [closest match]\n  Argument
+    "#,
+);
+
+testcase!(
     test_overload_error_shows_unpacked_kwargs,
     r#"
 from typing import overload, TypedDict, Unpack
