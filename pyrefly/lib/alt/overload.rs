@@ -6,6 +6,7 @@
  */
 
 use std::cmp::max;
+use std::ptr;
 
 use itertools::Either;
 use itertools::Itertools;
@@ -501,7 +502,7 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
                 arguments_range,
                 errors,
                 context,
-                &closest_overload.func.1.signature,
+                closest_overload.func,
                 closest_overload.call_errors,
                 closest_overload.argmap,
             );
@@ -563,7 +564,7 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
         arguments_range: TextRange,
         errors: &ErrorCollector,
         context: Option<&dyn Fn() -> ErrorContext>,
-        closest_overload_signature: &Callable,
+        closest_overload: &TargetWithTParams<Function>,
         closest_overload_call_errors: ErrorCollector,
         mut closest_overload_argmap: ArgMap,
     ) {
@@ -632,7 +633,9 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
             }
         };
         for overload in overloads {
-            let suffix = if overload.1.signature == *closest_overload_signature {
+            // `closest_overload` points into `overloads`. We compare identity because distinct
+            // overloads can specialize to identical signatures.
+            let suffix = if ptr::eq(overload, closest_overload) {
                 " [closest match]"
             } else {
                 ""
@@ -696,7 +699,7 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
             .with_details(details);
         if closest_overload_call_errors.is_empty() {
             // If there were no call errors, the failure must have been an arity mismatch.
-            let mut arg_counts = closest_overload_signature.arg_counts();
+            let mut arg_counts = closest_overload.1.signature.arg_counts();
             let nposargs = args.len();
             let nkwargs = keywords.len();
             let missing_self_param = self_obj.is_some() && arg_counts.positional.max == Some(0);
